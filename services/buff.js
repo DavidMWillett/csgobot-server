@@ -145,7 +145,7 @@ module.exports = function (sio) {
         },
 
         async login(browser) {
-            sio.info("Logging in to Buff...");
+            sio.info("Logging into Buff...");
             this.page = await browser.newPage();
             await this.page.goto('https://buff.163.com');
 
@@ -159,11 +159,10 @@ module.exports = function (sio) {
                 this.page.waitForSelector('#navbar-user-name'),
                 popup.click('#imageLogin')
             ]);
-            sio.info("Logged in to Buff.");
+            sio.info("Logged into Buff.");
         },
 
         async logout() {
-            sio.info("Logging out of Buff...");
             await Promise.all([
                 this.page.goto('https://buff.163.com/account/logout'),
                 this.page.waitForNavigation()

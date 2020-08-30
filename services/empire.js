@@ -13,7 +13,7 @@ module.exports = function (sio) {
     }
 
     module.stop = async () => {
-        site.terminate();
+        await site.terminate();
         await site.logout();
     }
 
@@ -23,35 +23,37 @@ module.exports = function (sio) {
 
     const site = {
         async login(browser) {
-            sio.info("Logging in to CSGO Empire...");
+            sio.info("Logging into CSGO Empire...");
             this.page = await browser.newPage();
             await this.page.goto('https://csgoempire.com/login');
             await Promise.all([
                 this.page.click('input[value="Sign In"]'),
                 this.page.waitForNavigation()
             ]);
+            sio.info("Logged into CSGO Empire.");
         },
 
         async logout() {
-            sio.info("Logging out of CSGO Empire...");
             await this.page.goto('https://csgoempire.com/logout');
+            sio.info("Logged out of CSGO Empire.");
         },
 
         async initialize(onNewItem) {
             this.onNewItem = onNewItem;
-            this._setSecurityToken().then();
-
-            setInterval(() => {
-                this._setSecurityToken().then()
-            }, 4 * 60 * 1000);
 
             await this.page.goto('https://csgoempire.com/withdraw#730');
 
-            const cdp = await this.page.target().createCDPSession();
-            await cdp.send('Network.enable');
-            await cdp.send('Page.enable');
+            this._setSecurityToken().then();
+            this.timeout = setInterval(() => {
+                this._setSecurityToken().then()
+            }, 4 * 60 * 1000);
 
-            cdp.on('Network.webSocketFrameReceived', this._messageHandler.bind(this));
+            this.cdp = await this.page.target().createCDPSession();
+            await this.cdp.send('Network.enable');
+            await this.cdp.send('Page.enable');
+
+            this.cdp.on('Network.webSocketFrameReceived', this._messageHandler.bind(this));
+            sio.info("Awaiting items from CSGO Empire...");
         },
 
         _messageHandler(message) {
@@ -73,8 +75,9 @@ module.exports = function (sio) {
             return [payload.substring(0, index), payload.substring(index + 1)];
         },
 
-        terminate() {
-            // clearTimeout(this.timer);
+        async terminate() {
+            await this.cdp.detach();
+            clearInterval(this.timeout);
         },
 
         async _setSecurityToken() {
