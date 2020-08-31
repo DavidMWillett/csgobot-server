@@ -5,7 +5,7 @@ const fetch = require('node-fetch');
 module.exports = function (sio) {
     const module = {};
 
-    module.COIN_USD_VALUE = 0.6037;
+    module.COIN_USD_VALUE = 0.5935;
 
     module.start = async (browser, onNewItem) => {
         await site.login(browser);
