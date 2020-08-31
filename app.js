@@ -1,18 +1,20 @@
-var express = require('express');
-var logger = require('morgan');
-var cors = require('cors');
+'use strict';
 
-var apiRouter = require('./routes/api');
-var sio = require('./sio');
+const express = require('express');
+const logger = require('morgan');
+const cors = require('cors');
 
-var app = express();
+const routes = require('./routes');
+const sio = require('./sio');
+
+const app = express();
 
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cors());
 
-app.use('/api', apiRouter);
+app.use('/api', routes);
 app.set('sio', sio);
 
 module.exports = app;
