@@ -8,16 +8,48 @@ module.exports = function (sio, buff) {
     const BUFF_FEE = 0.025;
     let coinUsdValue = null;
 
-    const minPrice = settings.MIN_PRICE;
-    const maxPrice = settings.MAX_PRICE;
-    const roi1 = settings.ROI1;
-    const roi1Price = settings.ROI1_PRICE;
-    const roi2 = settings.ROI2;
-    const roi2Price = settings.ROI2_PRICE;
-    const blacklist = settings.BLACKLIST;
+    let minPrice = settings.MIN_PRICE;
+    let maxPrice = settings.MAX_PRICE;
+    let roi1 = settings.ROI1;
+    let roi1Price = settings.ROI1_PRICE;
+    let roi2 = settings.ROI2;
+    let roi2Price = settings.ROI2_PRICE;
+    let blacklist = settings.BLACKLIST;
 
     module.initialize = value => {
         coinUsdValue = value;
+    };
+
+    module.getSettings = async () => {
+        return {
+            settings: {
+                minPrice,
+                maxPrice,
+                roi1,
+                roi1Price,
+                roi2,
+                roi2Price,
+                blacklist
+            }
+        }
+    };
+
+    module.setSettings = async newSettings => {
+        minPrice = newSettings.minPrice;
+        maxPrice = newSettings.maxPrice;
+        roi1 = newSettings.roi1;
+        roi1Price = newSettings.roi1Price;
+        roi2 = newSettings.roi2;
+        roi2Price = newSettings.roi2Price;
+        blacklist = newSettings.blacklist;
+        sio.info("New settings:");
+        sio.info("Minimum Price = " + minPrice);
+        sio.info("Maximum Price = " + maxPrice);
+        sio.info("ROI 1 = " + roi1);
+        sio.info("ROI 1 Price = " + roi1Price);
+        sio.info("ROI 2 = " + roi2);
+        sio.info("ROI 2 Price = " + roi2Price);
+        sio.info("Blacklist = " + blacklist);
     };
 
     module.isWanted = async (name, price) => {

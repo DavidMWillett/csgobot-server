@@ -28,6 +28,14 @@ module.exports = function (sio) {
         });
     }
 
+    module.setSettings = async settings => {
+        await assessor.setSettings(settings);
+    };
+
+    module.getSettings = async () => {
+        return assessor.getSettings();
+    };
+
     async function onNewItem(identifier, name, price) {
         if (await assessor.isWanted(name, price)) {
             empire.withdraw(identifier)

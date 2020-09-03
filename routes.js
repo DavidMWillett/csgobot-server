@@ -16,4 +16,14 @@ router.post('/stop', async (req, res) => {
     res.end();
 });
 
+router.get('/settings', async (req, res) => {
+    const settings = await csgobot.getSettings();
+    res.send(settings);
+});
+
+
+router.post('/settings', async (req, res) => {
+    await csgobot.setSettings(req.body);
+    res.end();
+});
 module.exports = router;
