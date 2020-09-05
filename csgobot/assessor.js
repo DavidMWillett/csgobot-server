@@ -29,7 +29,7 @@ module.exports = function (sio, buff) {
                 roi1Price,
                 roi2,
                 roi2Price,
-                blacklist
+                blacklist: blacklist.join(',')
             }
         }
     };
@@ -41,7 +41,7 @@ module.exports = function (sio, buff) {
         roi1Price = newSettings.roi1Price;
         roi2 = newSettings.roi2;
         roi2Price = newSettings.roi2Price;
-        blacklist = newSettings.blacklist;
+        blacklist = newSettings.blacklist.length > 0 ? newSettings.blacklist.split(',') : [];
         sio.info("New settings:");
         sio.info("Minimum Price = " + minPrice);
         sio.info("Maximum Price = " + maxPrice);
