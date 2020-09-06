@@ -1,5 +1,7 @@
 'use strict';
 
+const timestamp = require('time-stamp');
+
 let socket = null;
 
 function onConnect(sock) {
@@ -8,34 +10,29 @@ function onConnect(sock) {
 }
 
 function debug(text) {
-    socket.emit('debug', `${getTimestamp()} ${text}`);
+    send('debug', text);
 }
 
 function info(text) {
-    socket.emit('info', `${getTimestamp()} ${text}`);
+    send('info', text);
 }
 
 function success(text) {
-    socket.emit('success', `${getTimestamp()} ${text}`);
+    send('success', text);
 }
 
 function error(text) {
-    socket.emit('errorMsg', `${getTimestamp()} ${text}`);
+    send('errorMsg', text);
+}
+
+function send(type, text) {
+    socket.emit(type, `${timestamp('[HH:mm:ss:ms]')} ${text}`);
 }
 
 function getCode() {
     return new Promise((resolve) => {
         socket.emit('getCode', resolve);
     });
-}
-
-function getTimestamp() {
-    const date = new Date();
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    const seconds = date.getSeconds().toString().padStart(2, '0');
-    const milliseconds = date.getMilliseconds().toString().padStart(3, '0');
-    return `[${hours}:${minutes}:${seconds}:${milliseconds}]`;
 }
 
 module.exports = {
