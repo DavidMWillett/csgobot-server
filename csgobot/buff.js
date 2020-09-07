@@ -5,15 +5,41 @@
  * @module buff
  */
 
-const storage = require('node-persist');
+const fs = require('fs');
 const nodeFetch = require('node-fetch');
+const cacheManager = require('cache-manager');
+const fsCache = require('cache-manager-fs');
+
+const CACHE_DIR = 'cache';
+
+fs.mkdirSync(CACHE_DIR, {recursive: true});
+
+const idCache = cacheManager.caching({
+    store: fsCache, options: {
+        ttl: 365 * 24 * 60 * 60, // One year - no infinite available for fs cache
+        path: CACHE_DIR + '/id'
+    }
+});
+
+const priceCache = cacheManager.caching({
+    store: fsCache, options: {
+        ttl: 24 * 60 * 60, // One day
+        path: CACHE_DIR + '/price'
+    }
+});
+
+const fxCache = cacheManager.caching({
+    store: fsCache, options: {
+        ttl: 24 * 60 * 60, // One day
+        path: CACHE_DIR + '/fx'
+    }
+});
 
 module.exports = function (sio) {
     const module = {};
 
     module.start = async (browser) => {
         await site.login(browser);
-        await cache.initialize();
     }
 
     module.stop = async () => {
@@ -24,72 +50,29 @@ module.exports = function (sio) {
         return site.getOffer(fullName);
     }
 
-    const cache = {
-        async initialize() {
-            await storage.init({dir: 'storage'});
-        },
-
-        async get(key, liveGet) {
-            let result = {[key]: await storage.getItem(key)};
-            if (typeof result[key] !== 'undefined') {
-                sio.debug(`Cache hit - found ${result[key]}.`)
-            } else {
-                sio.debug(`Key ${key} not in cache; fetching from live source...`)
-                result = await liveGet(key);
-                sio.debug(`Fetched ${result[key]}.`);
-                storage.setItem(key, result[key]);
-            }
-            return result;
-        },
-
-        async timedGet(key, liveGet, ttl) {
-            const stored = {[key]: await storage.getItem(key)};
-            if (typeof stored[key] !== 'undefined') {
-                const [value, time] = stored[key];
-                sio.debug(`Cache hit - found ${value}.`);
-                if (time > Date.now()) {
-                    sio.debug(`Cache entry still valid.`);
-                    return {[key]: value};
-                } else {
-                    sio.debug(`Cache entry expired.`);
-                }
-            } else {
-                sio.debug(`Key ${key} not in cache.`)
-            }
-            sio.debug(`Fetching from live source...`);
-            const result = await liveGet(key);
-            sio.debug(`Fetched ${result[key]}.`);
-            storage.setItem(key, [result[key], Date.now() + ttl])
-            return result;
-        }
-    }
-
     const exchangeRatesApi = {
-        CACHE_TTL: 24 * 60 * 60 * 1000, // One day
-
         async getUSDFromCNY(cny) {
-            const result = await cache.timedGet('USD_CNY', this.getRateUSDCNY.bind(this), this.CACHE_TTL);
-            return cny / result['USD_CNY'];
+            const result = await fxCache.wrap('USD_CNY', () => this.getRateUSDCNY());
+            return cny / result;
         },
 
         async getRateUSDCNY() {
             const response = await nodeFetch(encodeURI('https://api.exchangeratesapi.io/latest?base=USD'));
             const result = await response.json();
-            return {'USD_CNY': result['rates']['CNY']};
+            return result['rates']['CNY'];
         }
     }
 
     const site = {
         SEARCH_URL: 'https://buff.163.com/api/market/goods/buying?game=csgo&page_num=1&search=',
         LOOKUP_URL: 'https://buff.163.com/api/market/goods/buy_order?game=csgo&goods_id=',
-        CACHE_TTL: 24 * 60 * 60 * 1000, // One day
 
         async getOffer(fullName) {
             const [name, spec] = fullName.split(' - ');
-            let id = (await cache.get(name, this.getId.bind(this)))[name];
+            let id = await idCache.wrap(name, () => this.getId(name));
             if (id === undefined) return {cnyBuffPrice: 0, usdBuffPrice: 0};
             if (spec !== undefined) id += ':' + spec;
-            const cnyBuffPrice = (await cache.timedGet(id, this.findBestOffer.bind(this), this.CACHE_TTL))[id];
+            const cnyBuffPrice = await priceCache.wrap(id, () => this.findBestOffer(id));
             const usdBuffPrice = await exchangeRatesApi.getUSDFromCNY(cnyBuffPrice);
             return {cnyBuffPrice, usdBuffPrice};
         },
@@ -100,7 +83,7 @@ module.exports = function (sio) {
                 return await response.json();
             }, this.SEARCH_URL + itemName);
             const matchingItems = content.data.items.filter(item => item.name === itemName);
-            return {[itemName]: matchingItems.length > 0 ? matchingItems[0].id.toString() : undefined};
+            return matchingItems.length > 0 ? matchingItems[0].id.toString() : undefined;
         },
 
         /**
@@ -108,7 +91,7 @@ module.exports = function (sio) {
          * defined as the highest price offered for the item so long as at least 3 items of this type are offered,
          * otherwise 0. Items with compatible 'specific' attributes are also considered.
          * @param key
-         * @returns {Promise<{}>}
+         * @returns {Promise<Number>}
          */
         async findBestOffer(key) {
             const [id, spec] = key.split(':');
@@ -127,13 +110,13 @@ module.exports = function (sio) {
                 if (offers.length === 3) {
                     const topOffer = offers[0];
                     if (topOffer > 700) {
-                        return {[key]: topOffer};
+                        return topOffer;
                     } else {
-                        return {[key]: (topOffer + offers[1]) / 2};
+                        return (topOffer + offers[1]) / 2;
                     }
                 }
             }
-            return {[key]: 0};
+            return 0;
         },
 
         async fetchPageData(buffId, pageNum) {
