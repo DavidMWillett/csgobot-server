@@ -6,9 +6,10 @@
  */
 
 const fs = require('fs');
-const nodeFetch = require('node-fetch');
 const cacheManager = require('cache-manager');
 const fsCache = require('cache-manager-fs');
+
+const fx = require('./fx');
 
 const CACHE_DIR = 'cache';
 
@@ -28,13 +29,6 @@ const priceCache = cacheManager.caching({
     }
 });
 
-const fxCache = cacheManager.caching({
-    store: fsCache, options: {
-        ttl: 24 * 60 * 60, // One day
-        path: CACHE_DIR + '/fx'
-    }
-});
-
 module.exports = function (sio) {
     const module = {};
 
@@ -50,19 +44,6 @@ module.exports = function (sio) {
         return site.getOffer(fullName);
     }
 
-    const exchangeRatesApi = {
-        async getUSDFromCNY(cny) {
-            const result = await fxCache.wrap('USD_CNY', () => this.getRateUSDCNY());
-            return cny / result;
-        },
-
-        async getRateUSDCNY() {
-            const response = await nodeFetch(encodeURI('https://api.exchangeratesapi.io/latest?base=USD'));
-            const result = await response.json();
-            return result['rates']['CNY'];
-        }
-    }
-
     const site = {
         SEARCH_URL: 'https://buff.163.com/api/market/goods/buying?game=csgo&page_num=1&search=',
         LOOKUP_URL: 'https://buff.163.com/api/market/goods/buy_order?game=csgo&goods_id=',
@@ -73,7 +54,7 @@ module.exports = function (sio) {
             if (id === undefined) return {cnyBuffPrice: 0, usdBuffPrice: 0};
             if (spec !== undefined) id += ':' + spec;
             const cnyBuffPrice = await priceCache.wrap(id, () => this.findBestOffer(id));
-            const usdBuffPrice = await exchangeRatesApi.getUSDFromCNY(cnyBuffPrice);
+            const usdBuffPrice = await fx.getUSDFromCNY(cnyBuffPrice);
             return {cnyBuffPrice, usdBuffPrice};
         },
 
