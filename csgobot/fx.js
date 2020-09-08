@@ -1,7 +1,7 @@
 'use strict';
 
 const fs = require('fs');
-const nodeFetch = require('node-fetch');
+const { exchangeRates } = require('exchange-rates-api');
 const cacheManager = require('cache-manager');
 const fsCache = require('cache-manager-fs');
 
@@ -15,14 +15,8 @@ const fxCache = cacheManager.caching({
 });
 
 async function getUSDFromCNY(cny) {
-    const result = await fxCache.wrap('USD_CNY', () => getRateUSDCNY());
-    return cny / result;
-}
-
-async function getRateUSDCNY() {
-    const response = await nodeFetch(encodeURI('https://api.exchangeratesapi.io/latest?base=USD'));
-    const result = await response.json();
-    return result['rates']['CNY'];
+    return cny / await fxCache.wrap('USD_CNY', () =>
+        exchangeRates().latest().base('USD').symbols('CNY').fetch());
 }
 
 module.exports.getUSDFromCNY = getUSDFromCNY;

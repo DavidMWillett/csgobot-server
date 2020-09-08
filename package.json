@@ -10,6 +10,7 @@
     "cache-manager-fs": "^1.0.8",
     "cors": "^2.8.5",
     "debug": "~2.6.9",
+    "exchange-rates-api": "^1.0.2",
     "express": "~4.16.1",
     "morgan": "~1.9.1",
     "node-fetch": "^2.6.0",
