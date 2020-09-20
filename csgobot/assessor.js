@@ -35,12 +35,12 @@ module.exports = function (sio, buff) {
     };
 
     module.setSettings = async newSettings => {
-        minPrice = newSettings.minPrice;
-        maxPrice = newSettings.maxPrice;
-        roi1 = newSettings.roi1;
-        roi1Price = newSettings.roi1Price;
-        roi2 = newSettings.roi2;
-        roi2Price = newSettings.roi2Price;
+        minPrice = Number(newSettings.minPrice);
+        maxPrice = Number(newSettings.maxPrice);
+        roi1 = Number(newSettings.roi1);
+        roi1Price = Number(newSettings.roi1Price);
+        roi2 = Number(newSettings.roi2);
+        roi2Price = Number(newSettings.roi2Price);
         blacklist = newSettings.blacklist.length > 0 ? newSettings.blacklist.split(',') : [];
         sio.info("New settings:");
         sio.info("Minimum Price = " + minPrice);
@@ -61,7 +61,7 @@ module.exports = function (sio, buff) {
         const minROI =
             usdBuyPrice <= roi1Price ? roi1 :
                 usdBuyPrice >= roi2Price ? roi2 :
-                    roi1 + usdBuyPrice * ((roi2 - roi1) / (roi2Price - roi1Price));
+                    roi1 + (usdBuyPrice - roi1Price) * ((roi2 - roi1) / (roi2Price - roi1Price));
         if (isBlacklisted(name, blacklist) || usdBuyPrice < minPrice || usdBuyPrice > maxPrice || roi < minROI) {
             sio.debug('Skipping ' + info(name, price, usdBuyPrice, usdBuffPrice, roi));
             return false;
