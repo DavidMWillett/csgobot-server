@@ -16,7 +16,7 @@ module.exports = function (sio) {
         browser = await initialize();
         await steam.login(browser);
         await buff.start(browser);
-        assessor.initialize(empire.COIN_USD_VALUE);
+        assessor.coinUsdValue = empire.COIN_USD_VALUE;
         await empire.start(browser, onNewItem);
     };
 

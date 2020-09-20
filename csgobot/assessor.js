@@ -5,8 +5,9 @@ const settings = require('./config').options;
 module.exports = function (sio, buff) {
     const module = {};
 
+    module.coinUsdValue = undefined;
+
     const BUFF_FEE = 0.025;
-    let coinUsdValue = null;
 
     let minPrice = settings.MIN_PRICE;
     let maxPrice = settings.MAX_PRICE;
@@ -15,10 +16,6 @@ module.exports = function (sio, buff) {
     let roi2 = settings.ROI2;
     let roi2Price = settings.ROI2_PRICE;
     let blacklist = settings.BLACKLIST;
-
-    module.initialize = value => {
-        coinUsdValue = value;
-    };
 
     module.getSettings = async () => {
         return {
@@ -53,10 +50,10 @@ module.exports = function (sio, buff) {
     };
 
     module.isWanted = async (name, price) => {
-        sio.debug(`${name} Price: ${price} coins ≈ $${to2dp(price * coinUsdValue)}`);
+        sio.debug(`${name} Price: ${price} coins ≈ $${to2dp(price * module.coinUsdValue)}`);
         const {cnyBuffPrice, usdBuffPrice} = await getBuffPrice(name);
         sio.debug(`Buff buyer price for ${name}: ¥${cnyBuffPrice} ≈ $${to2dp(usdBuffPrice)}`);
-        const usdBuyPrice = price * coinUsdValue;
+        const usdBuyPrice = price * module.coinUsdValue;
         const roi = 100 * ((usdBuffPrice * (1 - BUFF_FEE)) / usdBuyPrice - 1);
         const minROI =
             usdBuyPrice <= roi1Price ? roi1 :
