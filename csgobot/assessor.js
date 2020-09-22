@@ -23,22 +23,31 @@ module.exports = function (sio, buff) {
     const criteriaMetBy = async (name, price) => {
         const usdBuyPrice = price * coinUsdValue;
         sio.debug(`${name} Price: ${price} coins ≈ ${USD.format(usdBuyPrice)}`);
+        const usdSellPrice = await getUSDSellPrice(name);
+        const roi = 100 * ((usdSellPrice * (1 - BUFF_FEE)) / usdBuyPrice - 1);
+        if (!isBlacklisted(name, blacklist)
+            && usdBuyPrice >= minPrice && usdBuyPrice <= maxPrice
+            && roi >= minROI(usdBuyPrice)) {
+            sio.info('Buying ' + info(name, price, usdBuyPrice, usdSellPrice, roi));
+            return true;
+        } else {
+            sio.debug('Skipping ' + info(name, price, usdBuyPrice, usdSellPrice, roi));
+            return false;
+        }
+    };
+
+    const getUSDSellPrice = async (name) => {
         sio.debug(`Checking buff buyer price for ${name}...`);
         const cnySellPrice = await buff.getSellPrice(name);
         const usdSellPrice = await fx.getUSDFromCNY(cnySellPrice);
         sio.debug(`Buff buyer price for ${name}: ${CNY.format(cnySellPrice)} ≈ ${USD.format(usdSellPrice)}`);
-        const roi = 100 * ((usdSellPrice * (1 - BUFF_FEE)) / usdBuyPrice - 1);
-        const minROI =
-            usdBuyPrice <= roi1Price ? roi1 :
-                usdBuyPrice >= roi2Price ? roi2 :
-                    roi1 + (usdBuyPrice - roi1Price) * ((roi2 - roi1) / (roi2Price - roi1Price));
-        if (isBlacklisted(name, blacklist) || usdBuyPrice < minPrice || usdBuyPrice > maxPrice || roi < minROI) {
-            sio.debug('Skipping ' + info(name, price, usdBuyPrice, usdSellPrice, roi));
-            return false;
-        }
-        sio.info('Buying ' + info(name, price, usdBuyPrice, usdSellPrice, roi));
-        return true;
-    };
+        return usdSellPrice;
+    }
+
+    const minROI = buyPrice =>
+        buyPrice <= roi1Price ? roi1 :
+            buyPrice >= roi2Price ? roi2 :
+                roi1 + (buyPrice - roi1Price) * ((roi2 - roi1) / (roi2Price - roi1Price));
 
     const isBlacklisted = (name, blacklist) =>
         blacklist.find(it => name.toLowerCase().includes(it.toLowerCase())) !== undefined;
