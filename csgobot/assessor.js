@@ -8,9 +8,11 @@ const USD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD'}
 const CNY = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY'});
 
 module.exports = function (sio, buff) {
+    const module = {};
+
     const BUFF_FEE = 0.025;
 
-    let coinUsdValue = undefined;
+    module.coinUsdValue = undefined;
 
     let minPrice = settings.MIN_PRICE;
     let maxPrice = settings.MAX_PRICE;
@@ -20,8 +22,8 @@ module.exports = function (sio, buff) {
     let roi2Price = settings.ROI2_PRICE;
     let blacklist = settings.BLACKLIST;
 
-    const criteriaMetBy = async (name, price) => {
-        const usdBuyPrice = price * coinUsdValue;
+    module.criteriaMetBy = async (name, price) => {
+        const usdBuyPrice = price * module.coinUsdValue;
         sio.debug(`${name} Price: ${price} coins ≈ ${USD.format(usdBuyPrice)}`);
         const usdSellPrice = await getUSDSellPrice(name);
         const roi = 100 * ((usdSellPrice * (1 - BUFF_FEE)) / usdBuyPrice - 1);
@@ -55,15 +57,8 @@ module.exports = function (sio, buff) {
     const info = (name, coins, buy, sell, roi) =>
         `${name} Coins: ${coins} Buy: ${USD.format(buy)} Sell: ${USD.format(sell)} ROI: ${Math.round(roi)}%.`
 
-    // Return module interface
-    return {
-        set coinUsdValue(value) {
-            coinUsdValue = value;
-        },
-        get coinUsdValue() {
-            return coinUsdValue;
-        },
-        set criteria(value) {
+    Object.defineProperty(module, 'criteria', {
+        set: function (value) {
             minPrice = Number(value.minPrice);
             sio.info("New minimum price = " + minPrice);
             maxPrice = Number(value.maxPrice);
@@ -79,7 +74,7 @@ module.exports = function (sio, buff) {
             blacklist = value.blacklist.length > 0 ? value.blacklist.split(',') : [];
             sio.info("New blacklist = " + blacklist);
         },
-        get criteria() {
+        get: function () {
             return {
                 settings: {
                     minPrice,
@@ -91,7 +86,8 @@ module.exports = function (sio, buff) {
                     blacklist: blacklist.join(',')
                 }
             }
-        },
-        criteriaMetBy
-    }
+        }
+    });
+
+    return module;
 }
