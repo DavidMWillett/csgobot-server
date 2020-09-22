@@ -29,15 +29,15 @@ module.exports = function (sio) {
     }
 
     module.setSettings = async settings => {
-        await assessor.setSettings(settings);
+        assessor.criteria = settings;
     };
 
     module.getSettings = async () => {
-        return assessor.getSettings();
+        return assessor.criteria;
     };
 
     async function onNewItem(identifier, name, price) {
-        if (await assessor.isWanted(name, price)) {
+        if (await assessor.criteriaMetBy(name, price)) {
             empire.withdraw(identifier)
                 .then(result => {
                     if (result['success'])

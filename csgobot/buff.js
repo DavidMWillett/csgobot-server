@@ -9,8 +9,6 @@ const fs = require('fs');
 const cacheManager = require('cache-manager');
 const fsCache = require('cache-manager-fs');
 
-const fx = require('./fx');
-
 const CACHE_DIR = 'cache';
 
 fs.mkdirSync(CACHE_DIR, {recursive: true});
@@ -40,22 +38,20 @@ module.exports = function (sio) {
         await site.logout();
     }
 
-    module.getOffer = async fullName => {
-        return site.getOffer(fullName);
+    module.getSellPrice = async fullName => {
+        return site.getSellPrice(fullName);
     }
 
     const site = {
         SEARCH_URL: 'https://buff.163.com/api/market/goods/buying?game=csgo&page_num=1&search=',
         LOOKUP_URL: 'https://buff.163.com/api/market/goods/buy_order?game=csgo&goods_id=',
 
-        async getOffer(fullName) {
+        async getSellPrice(fullName) {
             const [name, spec] = fullName.split(' - ');
             let id = await idCache.wrap(name, () => this.getId(name));
             if (id === undefined) return {cnyBuffPrice: 0, usdBuffPrice: 0};
             if (spec !== undefined) id += ':' + spec;
-            const cnyBuffPrice = await priceCache.wrap(id, () => this.findBestOffer(id));
-            const usdBuffPrice = await fx.getUSDFromCNY(cnyBuffPrice);
-            return {cnyBuffPrice, usdBuffPrice};
+            return priceCache.wrap(id, () => this.findBestOffer(id));
         },
 
         async getId(itemName) {

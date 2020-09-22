@@ -1,13 +1,16 @@
 'use strict';
 
+const fx = require('./fx');
+
 const settings = require('./config').options;
 
+const USD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD'});
+const CNY = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY'});
+
 module.exports = function (sio, buff) {
-    const module = {};
-
-    module.coinUsdValue = undefined;
-
     const BUFF_FEE = 0.025;
+
+    let coinUsdValue = undefined;
 
     let minPrice = settings.MIN_PRICE;
     let maxPrice = settings.MAX_PRICE;
@@ -17,68 +20,69 @@ module.exports = function (sio, buff) {
     let roi2Price = settings.ROI2_PRICE;
     let blacklist = settings.BLACKLIST;
 
-    module.getSettings = async () => {
-        return {
-            settings: {
-                minPrice,
-                maxPrice,
-                roi1,
-                roi1Price,
-                roi2,
-                roi2Price,
-                blacklist: blacklist.join(',')
-            }
-        }
-    };
-
-    module.setSettings = async newSettings => {
-        minPrice = Number(newSettings.minPrice);
-        maxPrice = Number(newSettings.maxPrice);
-        roi1 = Number(newSettings.roi1);
-        roi1Price = Number(newSettings.roi1Price);
-        roi2 = Number(newSettings.roi2);
-        roi2Price = Number(newSettings.roi2Price);
-        blacklist = newSettings.blacklist.length > 0 ? newSettings.blacklist.split(',') : [];
-        sio.info("New settings:");
-        sio.info("Minimum Price = " + minPrice);
-        sio.info("Maximum Price = " + maxPrice);
-        sio.info("ROI 1 = " + roi1);
-        sio.info("ROI 1 Price = " + roi1Price);
-        sio.info("ROI 2 = " + roi2);
-        sio.info("ROI 2 Price = " + roi2Price);
-        sio.info("Blacklist = " + blacklist);
-    };
-
-    module.isWanted = async (name, price) => {
-        sio.debug(`${name} Price: ${price} coins ≈ $${to2dp(price * module.coinUsdValue)}`);
-        const {cnyBuffPrice, usdBuffPrice} = await getBuffPrice(name);
-        sio.debug(`Buff buyer price for ${name}: ¥${cnyBuffPrice} ≈ $${to2dp(usdBuffPrice)}`);
-        const usdBuyPrice = price * module.coinUsdValue;
-        const roi = 100 * ((usdBuffPrice * (1 - BUFF_FEE)) / usdBuyPrice - 1);
+    const criteriaMetBy = async (name, price) => {
+        const usdBuyPrice = price * coinUsdValue;
+        sio.debug(`${name} Price: ${price} coins ≈ ${USD.format(usdBuyPrice)}`);
+        sio.debug(`Checking buff buyer price for ${name}...`);
+        const cnySellPrice = await buff.getSellPrice(name);
+        const usdSellPrice = await fx.getUSDFromCNY(cnySellPrice);
+        sio.debug(`Buff buyer price for ${name}: ${CNY.format(cnySellPrice)} ≈ ${USD.format(usdSellPrice)}`);
+        const roi = 100 * ((usdSellPrice * (1 - BUFF_FEE)) / usdBuyPrice - 1);
         const minROI =
             usdBuyPrice <= roi1Price ? roi1 :
                 usdBuyPrice >= roi2Price ? roi2 :
                     roi1 + (usdBuyPrice - roi1Price) * ((roi2 - roi1) / (roi2Price - roi1Price));
         if (isBlacklisted(name, blacklist) || usdBuyPrice < minPrice || usdBuyPrice > maxPrice || roi < minROI) {
-            sio.debug('Skipping ' + info(name, price, usdBuyPrice, usdBuffPrice, roi));
+            sio.debug('Skipping ' + info(name, price, usdBuyPrice, usdSellPrice, roi));
             return false;
         }
-        sio.info('Buying ' + info(name, price, usdBuyPrice, usdBuffPrice, roi));
+        sio.info('Buying ' + info(name, price, usdBuyPrice, usdSellPrice, roi));
         return true;
     };
-
-    async function getBuffPrice(name) {
-        sio.debug(`Checking buff buyer price for ${name}...`);
-        return buff.getOffer(name);
-    }
 
     const isBlacklisted = (name, blacklist) =>
         blacklist.find(it => name.toLowerCase().includes(it.toLowerCase())) !== undefined;
 
     const info = (name, coins, buy, sell, roi) =>
-        `${name} Coins: ${coins} Buy: $${to2dp(buy)} Sell: $${to2dp(sell)} ROI: ${Math.round(roi)}%.`
+        `${name} Coins: ${coins} Buy: ${USD.format(buy)} Sell: ${USD.format(sell)} ROI: ${Math.round(roi)}%.`
 
-    const to2dp = num => (Math.round(num * 100) / 100).toFixed(2);
-
-    return module;
+    // Return module interface
+    return {
+        set coinUsdValue(value) {
+            coinUsdValue = value;
+        },
+        get coinUsdValue() {
+            return coinUsdValue;
+        },
+        set criteria(value) {
+            minPrice = Number(value.minPrice);
+            sio.info("New minimum price = " + minPrice);
+            maxPrice = Number(value.maxPrice);
+            sio.info("New maximum price = " + maxPrice);
+            roi1 = Number(value.roi1);
+            sio.info("New ROI 1 = " + roi1);
+            roi1Price = Number(value.roi1Price);
+            sio.info("New ROI 1 price = " + roi1Price);
+            roi2 = Number(value.roi2);
+            sio.info("New ROI 2 = " + roi2);
+            roi2Price = Number(value.roi2Price);
+            sio.info("New ROI 2 price = " + roi2Price);
+            blacklist = value.blacklist.length > 0 ? value.blacklist.split(',') : [];
+            sio.info("New blacklist = " + blacklist);
+        },
+        get criteria() {
+            return {
+                settings: {
+                    minPrice,
+                    maxPrice,
+                    roi1,
+                    roi1Price,
+                    roi2,
+                    roi2Price,
+                    blacklist: blacklist.join(',')
+                }
+            }
+        },
+        criteriaMetBy
+    }
 }
