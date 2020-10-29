@@ -12,9 +12,9 @@ module.exports = function (sio) {
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' +
             'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4182.0 Safari/537.36');
         await page.goto('https://steamcommunity.com/login');
-        await page.type('#steamAccountName', settings.USERNAME);
-        await page.type('#steamPassword', settings.PASSWORD);
-        await page.click('#SteamLogin');
+        await page.type('#input_username', settings.USERNAME);
+        await page.type('#input_password', settings.PASSWORD);
+        await page.click('button.login_btn');
 
         sio.info("Authenticating...");
         await page.waitForSelector('div.newmodal', {visible: true});
