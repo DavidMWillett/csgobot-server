@@ -58,21 +58,16 @@ module.exports = function (sio) {
 
         _messageHandler(message) {
             const response = message.response;
-            if (response.opcode === 1) {
-                const [head, body] = this._cleave(response.payloadData);
-                if (head === '42/notifications') {
-                    const content = JSON.parse(body);
+            if (response['opcode'] === 1) {
+                const match = response['payloadData'].match(/42(\[.*])$/);
+                if (match) {
+                    const content = JSON.parse(match[1]);
                     if (content[0] === 'p2p_new_item') {
                         const item = JSON.parse(content[1]);
-                        this.onNewItem({id: item.id, bot_id: item.bot_id}, item.name, item.market_value / 100);
+                        this.onNewItem({id: item.id, bot_id: item.bot_id}, item['name'], item['market_value'] / 100);
                     }
                 }
             }
-        },
-
-        _cleave(payload) {
-            const index = payload.indexOf(',');
-            return [payload.substring(0, index), payload.substring(index + 1)];
         },
 
         async terminate() {
